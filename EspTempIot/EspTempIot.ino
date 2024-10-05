@@ -5,9 +5,7 @@
 #include <WiFiClientSecure.h>     // Secure Wi-Fi client for HTTPS
 #include <time.h>                 // Time functions for NTP
 
-// Wi-Fi credentials
-const char* ssid = "";
-const char* password = "";
+#include "secrets.h"
 
 // NTP Server Details
 const char* ntpServer = "pool.ntp.org"; // NTP server
@@ -21,8 +19,7 @@ const int   daylightOffset_sec = 0;     // Daylight offset (in seconds)
 DHT dht(DHTPIN, DHTTYPE);        // Initialize DHT sensor
 
 // API endpoints
-const char* temperatureEndpoint = "";
-const char* helloEndpoint = "";
+const char* temperatureEndpoint = "https://n923vvlwx1s08tmh.run.nodescript.dev/arduino/temperature-and-humidity";
 
 void setup() {
   Serial.begin(115200);             // Initialize serial communication at 115200 baud rate
@@ -31,7 +28,7 @@ void setup() {
   Serial.println();
   Serial.println("Connecting to WiFi...");
 
-  WiFi.begin(ssid, password);       // Connect to Wi-Fi network
+  WiFi.begin(SSID, PASSWORD);       // Connect to Wi-Fi network
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -56,34 +53,6 @@ void setup() {
   Serial.println("Time synchronized.");
 }
 
-void sendHelloRequest() {
-  if (WiFi.status() == WL_CONNECTED) { // Ensure Wi-Fi is connected
-    WiFiClientSecure client;
-    client.setInsecure(); // Disable SSL certificate verification (for testing purposes)
-    HTTPClient http;
-
-    // Begin HTTPS connection
-    if (http.begin(client, helloEndpoint)) {
-      int httpResponseCode = http.GET(); // Send GET request
-      if (httpResponseCode > 0) {
-        Serial.print("Hello Endpoint Response Code: ");
-        Serial.println(httpResponseCode);
-        String response = http.getString();
-        Serial.print("Hello Response: ");
-        Serial.println(response);
-      } else {
-        Serial.print("Failed to connect to Hello endpoint, Error Code: ");
-        Serial.println(httpResponseCode);
-      }
-      http.end(); // Close connection
-    } else {
-      Serial.println("Unable to connect to Hello endpoint");
-    }
-  } else {
-    Serial.println("WiFi not connected for Hello endpoint");
-  }
-}
-
 void sendTemperatureData(float temperature, float humidity, unsigned long timestamp) {
   if (WiFi.status() == WL_CONNECTED) { // Ensure Wi-Fi is connected
     WiFiClientSecure client;
@@ -92,7 +61,7 @@ void sendTemperatureData(float temperature, float humidity, unsigned long timest
     http.setTimeout(10000);              // Set timeout to 10 seconds
 
     // Begin HTTPS connection
-    if (http.begin(client, temperatureEndpoint)) {
+    if (http.begin(client, TEMP_ENDPOINT)) {
       http.addHeader("Content-Type", "application/json"); // Set content type to JSON
 
       // Create JSON payload
@@ -125,9 +94,6 @@ void sendTemperatureData(float temperature, float humidity, unsigned long timest
 
 void loop() {
   delay(5000); // Wait 5 seconds between readings
-
-  // Send Hello GET request
-  sendHelloRequest();
 
   // Read temperature and humidity
   float humidity = dht.readHumidity();
