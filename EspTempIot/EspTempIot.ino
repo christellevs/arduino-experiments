@@ -3,10 +3,16 @@
 #include <DHT.h>                  // DHT library
 #include <Adafruit_Sensor.h>      // Adafruit sensor library
 #include <WiFiClientSecure.h>     // Secure Wi-Fi client for HTTPS
+#include <time.h>                 // Time functions for NTP
 
 // Wi-Fi credentials
 const char* ssid = "";
 const char* password = "";
+
+// NTP Server Details
+const char* ntpServer = "pool.ntp.org"; // NTP server
+const long  gmtOffset_sec = 0;          // Adjust according to your timezone (in seconds)
+const int   daylightOffset_sec = 0;     // Daylight offset (in seconds)
 
 // DHT11 setup
 #define DHTPIN 2                 // DHT11 sensor pin connected to GPIO2 (D4 on D1 Mini)
@@ -38,6 +44,16 @@ void setup() {
   Serial.println(WiFi.localIP());   // Display the IP address
 
   dht.begin();                      // Start DHT sensor
+
+  // Initialize NTP
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  Serial.println("Waiting for NTP time sync...");
+  while (!time(nullptr)) {
+    Serial.print(".");
+    delay(1000);
+  }
+  Serial.println();
+  Serial.println("Time synchronized.");
 }
 
 void sendHelloRequest() {
@@ -131,8 +147,19 @@ void loop() {
   Serial.print(humidity);
   Serial.println("%");
 
-  // Get current timestamp
-  unsigned long timestamp = millis() / 1000; // Milliseconds to seconds
+  // Get current Unix timestamp
+  time_t now = time(nullptr); // Get the current time in seconds since Jan 1, 1970
+  unsigned long timestamp = now;
+
+  // Check if time is valid
+  if (now < 100000) { // Arbitrary threshold to check if time is valid
+    Serial.println("Failed to obtain valid time");
+    return;
+  }
+
+  // Print the timestamp
+  Serial.print("Unix Timestamp: ");
+  Serial.println(timestamp);
 
   // Send Temperature POST request
   sendTemperatureData(temperature, humidity, timestamp);
