@@ -18,9 +18,6 @@ const int   daylightOffset_sec = 0;     // Daylight offset (in seconds)
 
 DHT dht(DHTPIN, DHTTYPE);        // Initialize DHT sensor
 
-// API endpoints
-const char* temperatureEndpoint = "https://n923vvlwx1s08tmh.run.nodescript.dev/arduino/temperature-and-humidity";
-
 void setup() {
   Serial.begin(115200);             // Initialize serial communication at 115200 baud rate
   delay(10);
@@ -53,7 +50,7 @@ void setup() {
   Serial.println("Time synchronized.");
 }
 
-void sendTemperatureData(float temperature, float humidity, unsigned long timestamp) {
+void sendTemperatureData(const char* endpoint, float temperature, float humidity, unsigned long timestamp) {
   if (WiFi.status() == WL_CONNECTED) { // Ensure Wi-Fi is connected
     WiFiClientSecure client;
     client.setInsecure(); // Disable SSL certificate verification (for testing purposes)
@@ -61,7 +58,7 @@ void sendTemperatureData(float temperature, float humidity, unsigned long timest
     http.setTimeout(10000);              // Set timeout to 10 seconds
 
     // Begin HTTPS connection
-    if (http.begin(client, TEMP_ENDPOINT)) {
+    if (http.begin(client, endpoint)) {
       http.addHeader("Content-Type", "application/json"); // Set content type to JSON
 
       // Create JSON payload
@@ -74,27 +71,30 @@ void sendTemperatureData(float temperature, float humidity, unsigned long timest
 
       // Check HTTP response
       if (httpResponseCode > 0) {
-        Serial.print("Temperature Endpoint Response Code: ");
+        Serial.print("Endpoint Response Code (");
+        Serial.print(endpoint);
+        Serial.print("): ");
         Serial.println(httpResponseCode);
         String response = http.getString();
-        Serial.print("Temperature Response: ");
+        Serial.print("Response: ");
         Serial.println(response);
       } else {
-        Serial.print("Failed to send data to Temperature endpoint, Error Code: ");
+        Serial.print("Failed to send data to ");
+        Serial.print(endpoint);
+        Serial.print(", Error Code: ");
         Serial.println(httpResponseCode);
       }
       http.end(); // Free resources
     } else {
-      Serial.println("Unable to connect to Temperature endpoint");
+      Serial.print("Unable to connect to endpoint: ");
+      Serial.println(endpoint);
     }
   } else {
-    Serial.println("WiFi not connected for Temperature endpoint");
+    Serial.println("WiFi not connected");
   }
 }
 
 void loop() {
-  delay(5000); // Wait 5 seconds between readings
-
   // Read temperature and humidity
   float humidity = dht.readHumidity();
   float temperature = dht.readTemperature();
@@ -114,7 +114,7 @@ void loop() {
   Serial.println("%");
 
   // Get current Unix timestamp
-  time_t now = time(nullptr); // Get the current time in seconds since Jan 1, 1970
+  time_t now = time(nullptr); // Get Unix time
   unsigned long timestamp = now;
 
   // Check if time is valid
@@ -127,6 +127,9 @@ void loop() {
   Serial.print("Unix Timestamp: ");
   Serial.println(timestamp);
 
-  // Send Temperature POST request
-  sendTemperatureData(temperature, humidity, timestamp);
+  // Send POST request to both endpoints
+  sendTemperatureData(TEMP_LOGS_ENDPOINT, temperature, humidity, timestamp);      // Send to logs endpoint
+  sendTemperatureData(TEMP_NOTIFIER_ENDPOINT, temperature, humidity, timestamp);  // Send to notifier endpoint
+
+  delay(1800000); // Wait 30 minutes between readings
 }
