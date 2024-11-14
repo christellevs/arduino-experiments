@@ -132,4 +132,5 @@ void loop() {
   sendTemperatureData(TEMP_NOTIFIER_ENDPOINT, temperature, humidity, timestamp);  // Send to notifier endpoint
 
   delay(1800000); // Wait 30 minutes between readings
+  // delay(30000); // For testing purposes
 }
